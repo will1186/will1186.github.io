@@ -1,0 +1,71 @@
+title: Lazarus Group Lateral Movement via Remote Services
+id: 8c3a1f7e-2d4b-4e9a-b5c6-7f8d9e0a1b2c
+status: experimental
+description: |
+    Detects lateral movement patterns attributed to Lazarus Group operations.
+    Focuses on RDP tunneling through SSH, SMB-based tool staging, and WMI 
+    execution chains observed in financial sector intrusions. Lazarus operators 
+    typically move laterally within 2-4 hours of initial access, staging tools 
+    in predictable temp directories before credential harvesting.
+references:
+    - https://www.cisa.gov/news-events/cybersecurity-advisories/aa20-106a
+    - https://attack.mitre.org/groups/G0032/
+author: Will Welch
+date: 2026/04/12
+tags:
+    - attack.lateral_movement
+    - attack.t1021.001  # RDP
+    - attack.t1021.002  # SMB
+    - attack.t1047       # WMI
+    - attack.t1570       # Lateral Tool Transfer
+logsource:
+    category: process_creation
+    product: windows
+detection:
+    # RDP tunneling via SSH — Lazarus uses Plink/PuTTY for RDP pivoting
+    rdp_tunnel:
+        CommandLine|contains|all:
+            - '-L'
+            - '3389'
+        Image|endswith:
+            - '\plink.exe'
+            - '\ssh.exe'
+            - '\putty.exe'
+
+    # SMB tool staging to temp directories
+    smb_staging:
+        TargetFilename|contains:
+            - '\Windows\Temp\'
+            - '\ProgramData\'
+            - '\AppData\Local\Temp\'
+        TargetFilename|endswith:
+            - '.exe'
+            - '.dll'
+            - '.bat'
+        EventType: 'FileCreate'
+
+    # WMI lateral execution — process creation via WMI
+    wmi_lateral:
+        ParentImage|endswith: '\wmiprvse.exe'
+        Image|endswith:
+            - '\cmd.exe'
+            - '\powershell.exe'
+            - '\mshta.exe'
+            - '\rundll32.exe'
+
+    # Lazarus-specific: rapid sequential RDP connections to multiple hosts
+    # Indicates systematic lateral movement across network segment
+    rdp_spray:
+        EventID: 4624
+        LogonType: 10
+        
+    # Time-based filter: multiple RDP sessions within 30min window
+    timeframe: 30m
+    
+    condition: rdp_tunnel or (smb_staging and wmi_lateral) or rdp_spray
+    
+falsepositives:
+    - IT administrators using SSH tunneling for legitimate remote access
+    - Automated software deployment via WMI (SCCM/MECM)
+    - Scheduled file distribution to temp directories
+level: high

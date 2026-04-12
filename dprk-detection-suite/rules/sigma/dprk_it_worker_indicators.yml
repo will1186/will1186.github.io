@@ -1,0 +1,185 @@
+title: DPRK IT Worker Fraud — Remote Access and Identity Anomalies
+id: 6c9d4a1b-3e5f-7b8c-0d2a-1f4e6a9c8b3d
+status: experimental
+description: |
+    Detects behavioral indicators of DPRK IT worker fraud operations based on 
+    DOJ indictments and FBI/CISA advisories. North Korean operatives obtain 
+    remote contractor positions at US/EU companies using stolen identities, 
+    AI-generated photos, and laptop farms. Key indicators include KVM-over-IP 
+    usage, VPN endpoint cycling across geographically inconsistent locations, 
+    multiple concurrent RDP sessions from a single origin, and remote access 
+    tool stacking (AnyDesk + TeamViewer + RDP simultaneously).
+references:
+    - https://www.justice.gov/opa/pr/justice-department-charges-five-individuals-multi-year-scheme-generate-revenue-north-korean
+    - https://www.cisa.gov/news-events/cybersecurity-advisories/aa24-249a
+    - https://attack.mitre.org/techniques/T1078/
+author: Will Welch
+date: 2026/04/12
+tags:
+    - attack.initial_access
+    - attack.t1078       # Valid Accounts
+    - attack.t1133       # External Remote Services
+    - attack.persistence
+    - attack.t1098       # Account Manipulation
+logsource:
+    category: process_creation
+    product: windows
+detection:
+    # Remote access tool stacking — multiple RATs running simultaneously
+    # DPRK operators use layered remote access to maintain control
+    rat_stacking:
+        Image|endswith:
+            - '\AnyDesk.exe'
+            - '\TeamViewer.exe'
+            - '\rustdesk.exe'
+            - '\ScreenConnect.ClientService.exe'
+            - '\LogMeIn.exe'
+
+    # KVM-over-IP indicators — hardware remote access to laptop farms
+    kvm_indicators:
+        Image|endswith:
+            - '\TightVNC.exe'
+            - '\tvnserver.exe'
+            - '\winvnc.exe'
+        CommandLine|contains:
+            - '-controlservice'
+            - '-start'
+
+    # Multiple VPN client processes — endpoint cycling
+    vpn_cycling:
+        Image|endswith:
+            - '\openvpn.exe'
+            - '\ExpressVPN.exe'
+            - '\NordVPN.exe'
+            - '\Surfshark.exe'
+            - '\ProtonVPN.exe'
+
+    # IP geolocation anomaly — login from inconsistent locations
+    # Requires correlation with authentication logs
+    geo_anomaly:
+        EventID: 4624
+        LogonType: 10  # RemoteInteractive (RDP)
+
+    condition: rat_stacking or (kvm_indicators and vpn_cycling)
+
+falsepositives:
+    - IT support personnel using multiple remote access tools
+    - Developers with legitimate VPN usage across regions
+    - Managed service providers with layered remote access
+level: high
+---
+title: DPRK IT Worker — Suspicious Payroll and Account Activity
+id: 7d0e5b2c-4f6a-8c9d-1e3b-2a5f7b0d9c4e
+status: experimental
+description: |
+    Detects account manipulation patterns consistent with DPRK IT worker 
+    operations — rapid onboarding followed by payment method changes, 
+    access to financial systems disproportionate to role, and attempts 
+    to modify direct deposit or payment routing information.
+references:
+    - https://www.justice.gov/opa/pr/justice-department-charges-five-individuals-multi-year-scheme-generate-revenue-north-korean
+author: Will Welch
+date: 2026/04/12
+tags:
+    - attack.persistence
+    - attack.t1098       # Account Manipulation
+    - attack.t1078.004   # Cloud Accounts
+logsource:
+    category: application
+    product: generic
+detection:
+    # Payment method changes within first 30 days of account creation
+    payment_change:
+        EventType: 'AccountModification'
+        ModifiedField|contains:
+            - 'direct_deposit'
+            - 'bank_account'
+            - 'routing_number'
+            - 'payment_method'
+            - 'payoneer'
+            - 'paypal'
+
+    # Access to HR/payroll systems from remote access tools
+    hr_access_via_rat:
+        DestinationHostname|contains:
+            - 'workday'
+            - 'adp.com'
+            - 'paylocity'
+            - 'gusto.com'
+            - 'bamboohr'
+        SourceProcess|endswith:
+            - '\AnyDesk.exe'
+            - '\TeamViewer.exe'
+            
+    # Multiple account creations from same device fingerprint
+    multi_account:
+        EventType: 'AccountCreation'
+        # Group by device fingerprint / hardware ID
+        
+    condition: payment_change or hr_access_via_rat
+    
+falsepositives:
+    - New employees legitimately updating payment information
+    - HR administrators accessing payroll systems remotely
+level: medium
+---
+title: DPRK IT Worker — Source Code Exfiltration Indicators
+id: 8e1f6c3d-5a7b-9d0e-2f4c-3b6a8c1e0d5f
+status: experimental
+description: |
+    Detects indicators of source code and IP theft by DPRK IT worker 
+    operatives. After establishing access as contractors, DPRK workers 
+    have been observed cloning entire repositories, downloading proprietary 
+    codebases, and exfiltrating data via personal cloud storage or 
+    encrypted channels.
+references:
+    - https://www.cisa.gov/news-events/cybersecurity-advisories/aa24-249a
+author: Will Welch
+date: 2026/04/12
+tags:
+    - attack.exfiltration
+    - attack.t1567.002   # Exfiltration to Cloud Storage
+    - attack.collection
+    - attack.t1213       # Data from Information Repositories
+logsource:
+    category: process_creation
+    product: windows
+detection:
+    # Bulk git clone operations
+    bulk_clone:
+        Image|endswith:
+            - '\git.exe'
+        CommandLine|contains:
+            - 'clone'
+            - '--mirror'
+            - '--bare'
+
+    # Upload to personal cloud storage
+    cloud_exfil:
+        DestinationHostname|contains:
+            - 'drive.google.com'
+            - 'dropbox.com'
+            - 'mega.nz'
+            - 'anonfiles.com'
+            - 'transfer.sh'
+            - 'file.io'
+
+    # Archive creation of source directories
+    source_archive:
+        CommandLine|contains:
+            - '.git'
+            - 'src'
+            - 'source'
+            - 'repo'
+        Image|endswith:
+            - '\7z.exe'
+            - '\rar.exe'
+            - '\tar.exe'
+            
+    condition: bulk_clone and (cloud_exfil or source_archive)
+    
+falsepositives:
+    - Developers cloning repositories for legitimate work
+    - CI/CD pipelines performing mirror operations
+    - Authorized backup procedures
+level: high

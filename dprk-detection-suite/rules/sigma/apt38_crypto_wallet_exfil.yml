@@ -1,0 +1,124 @@
+title: APT38 Cryptocurrency Wallet Data Exfiltration
+id: 4a7b2e9f-1c3d-5f6a-8b0e-9d2c4f7a3e1b
+status: experimental
+description: |
+    Detects behavioral indicators of APT38/TraderTraitor cryptocurrency wallet 
+    data exfiltration. Covers access to wallet files, private key directories, 
+    and browser extension storage for crypto wallets (MetaMask, Phantom, etc.), 
+    followed by data staging and outbound transfer. APT38 typically archives 
+    wallet data before exfil via HTTPS POST or cloud storage upload.
+references:
+    - https://www.cisa.gov/news-events/cybersecurity-advisories/aa22-108a
+    - https://www.ic3.gov/Media/News/2022/220516.pdf
+    - https://attack.mitre.org/groups/G0082/
+author: Will Welch
+date: 2026/04/12
+tags:
+    - attack.collection
+    - attack.t1005       # Data from Local System
+    - attack.exfiltration
+    - attack.t1041       # Exfiltration Over C2 Channel
+    - attack.t1567       # Exfiltration Over Web Service
+logsource:
+    category: file_access
+    product: windows
+detection:
+    # Access to cryptocurrency wallet files
+    wallet_file_access:
+        TargetFilename|contains:
+            - '\Ethereum\keystore'
+            - '\Bitcoin\wallets'
+            - '\Exodus\exodus.wallet'
+            - '\Atomic\Local Storage'
+            - '\Electrum\wallets'
+            - 'wallet.dat'
+
+    # Access to browser extension wallet storage
+    browser_wallet_access:
+        TargetFilename|contains:
+            # MetaMask extension IDs (Chrome/Edge/Brave)
+            - '\nkbihfbeogaeaoehlefnkodbefgpgknn'
+            # Phantom
+            - '\bfnaelmomeimhlpmgjnjophhpkkoljpa'
+            # Coinbase Wallet
+            - '\hnfanknocfeofbddgcijnmhnfnkdnaad'
+        TargetFilename|endswith:
+            - '\Local Storage\leveldb'
+            - '\IndexedDB'
+
+    # Archive creation after wallet access — staging for exfil
+    archive_staging:
+        Image|endswith:
+            - '\7z.exe'
+            - '\rar.exe'
+            - '\tar.exe'
+            - '\powershell.exe'
+        CommandLine|contains:
+            - '.zip'
+            - '.rar'
+            - '.7z'
+            - 'Compress-Archive'
+
+    # Outbound data transfer post-staging
+    exfil_transfer:
+        Image|endswith:
+            - '\curl.exe'
+            - '\powershell.exe'
+            - '\certutil.exe'
+        CommandLine|contains:
+            - 'POST'
+            - 'Invoke-WebRequest'
+            - '-urlcache'
+            - 'Transfer-Encoding'
+            
+    condition: (wallet_file_access or browser_wallet_access) and (archive_staging or exfil_transfer)
+    
+falsepositives:
+    - Cryptocurrency users legitimately accessing their own wallet files
+    - Backup utilities archiving AppData directories
+    - Browser sync operations on extension storage
+level: critical
+---
+title: APT38 Cryptocurrency Clipboard Monitoring
+id: 5b8c3f0a-2d4e-6a7b-9c1f-0e3d5a8b7c2f
+status: experimental
+description: |
+    Detects clipboard monitoring behavior consistent with APT38 cryptocurrency 
+    address swapping attacks. The attacker monitors the clipboard for crypto 
+    wallet address patterns and replaces them with attacker-controlled addresses.
+references:
+    - https://www.ic3.gov/Media/News/2022/220516.pdf
+author: Will Welch
+date: 2026/04/12
+tags:
+    - attack.collection
+    - attack.t1115  # Clipboard Data
+logsource:
+    category: process_creation
+    product: windows
+detection:
+    # Process with clipboard API access + network connectivity
+    clipboard_monitor:
+        CommandLine|contains:
+            - 'GetClipboardData'
+            - 'SetClipboardData'
+            - 'AddClipboardFormatListener'
+    
+    # PowerShell clipboard access — common in DPRK tooling
+    ps_clipboard:
+        Image|endswith: '\powershell.exe'
+        CommandLine|contains:
+            - 'Get-Clipboard'
+            - 'Set-Clipboard'
+            - '[System.Windows.Forms.Clipboard]'
+            
+    # Persistence for clipboard monitoring
+    persistence:
+        TargetFilename|contains: '\CurrentVersion\Run'
+        
+    condition: (clipboard_monitor or ps_clipboard) and persistence
+    
+falsepositives:
+    - Clipboard manager utilities (Ditto, ClipX)
+    - Password managers with clipboard integration
+level: high
