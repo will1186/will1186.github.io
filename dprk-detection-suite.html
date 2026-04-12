@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DPRK Detection Suite — Will Welch</title>
+    <link rel="stylesheet" href="../style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,300;0,8..60,400;0,8..60,600;1,8..60,400&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+</head>
+<body>
+    <nav>
+        <a href="/" class="nav-name">Will Welch</a>
+        <div class="nav-links">
+            <a href="/projects.html">Projects</a>
+            <a href="/blog.html">Blog</a>
+            <a href="https://github.com/will1186" target="_blank" rel="noopener">GitHub</a>
+            <a href="https://linkedin.com/in/" target="_blank" rel="noopener">LinkedIn</a>
+        </div>
+    </nav>
+
+    <main class="page">
+        <a href="/projects.html" class="back-link">&larr; All Projects</a>
+        <h1>DPRK Threat Actor Detection Suite</h1>
+        <div class="project-meta">Detection Engineering · 2026</div>
+        <div class="tag-row" style="margin-bottom: 2rem;">
+            <span class="tag">YARA</span>
+            <span class="tag">Sigma</span>
+            <span class="tag">Python</span>
+            <span class="tag">MITRE ATT&CK</span>
+            <span class="tag">DPRK</span>
+        </div>
+
+        <section class="project-body">
+            <p>
+                Detection rules and an automated testing framework targeting DPRK-nexus cyber operations —
+                Lazarus Group (HIDDEN COBRA), APT38, and APT45 (Andariel). Built to demonstrate
+                end-to-end detection engineering: from threat intelligence reporting to deployable
+                detection logic with measurable performance metrics.
+            </p>
+
+            <h2>What It Does</h2>
+            <p>
+                Nine YARA rules identify DPRK malware artifacts in binaries — credential harvesting
+                toolkits, cryptocurrency theft modules, clipboard hijackers, and supply chain backdoors.
+                Six Sigma rules detect behavioral patterns in log telemetry — lateral movement via
+                RDP tunneling, crypto wallet exfiltration chains, and IT worker fraud indicators
+                including RAT stacking and source code theft.
+            </p>
+            <p>
+                A Python testing framework validates every rule against simulated cloud audit logs
+                containing a mix of malicious, benign, and adversarial false-positive-test events.
+                The scorer reports true positive, false positive, and false negative rates per rule
+                with precision, recall, and F1 metrics.
+            </p>
+
+            <h2>ATT&CK Coverage</h2>
+            <table class="coverage-table">
+                <thead>
+                    <tr>
+                        <th>Technique</th>
+                        <th>ID</th>
+                        <th>Type</th>
+                        <th>Target</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr><td>OS Credential Dumping</td><td>T1003</td><td>YARA</td><td>Lazarus</td></tr>
+                    <tr><td>Credentials from Browser</td><td>T1555.003</td><td>YARA</td><td>Lazarus</td></tr>
+                    <tr><td>Keylogging</td><td>T1056.001</td><td>YARA</td><td>Lazarus</td></tr>
+                    <tr><td>Trojanized Trading App</td><td>T1195.002</td><td>YARA</td><td>APT38</td></tr>
+                    <tr><td>Clipboard Hijacking</td><td>T1115</td><td>YARA</td><td>APT38</td></tr>
+                    <tr><td>Wallet Seed Extraction</td><td>T1005</td><td>YARA</td><td>APT38</td></tr>
+                    <tr><td>Supply Chain Compromise</td><td>T1195.002</td><td>YARA</td><td>Cross-actor</td></tr>
+                    <tr><td>Lateral Movement (RDP/SMB/WMI)</td><td>T1021</td><td>Sigma</td><td>Lazarus</td></tr>
+                    <tr><td>Crypto Wallet Exfiltration</td><td>T1041</td><td>Sigma</td><td>APT38</td></tr>
+                    <tr><td>IT Worker Fraud Indicators</td><td>T1078</td><td>Sigma</td><td>DPRK cells</td></tr>
+                    <tr><td>Source Code Exfiltration</td><td>T1567.002</td><td>Sigma</td><td>DPRK cells</td></tr>
+                </tbody>
+            </table>
+
+            <h2>Intelligence Sources</h2>
+            <p>
+                All detection logic is derived from publicly available reporting: CISA advisories
+                AA22-108A (TraderTraitor) and AA20-106A (HIDDEN COBRA guidance), Mandiant's APT38
+                and APT45 reports, FBI PIN 20220516-001 on North Korean cryptocurrency targeting,
+                and 2024 DOJ indictments on DPRK IT worker fraud operations.
+            </p>
+
+            <h2>Repository</h2>
+            <p>
+                <a href="https://github.com/will1186/will1186.github.io" target="_blank" rel="noopener">
+                    View on GitHub &rarr;
+                </a>
+            </p>
+        </section>
+    </main>
+
+    <footer>
+        <p>&copy; 2026 Will Welch</p>
+    </footer>
+</body>
+</html>
